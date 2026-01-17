@@ -19,7 +19,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🏗️ Tmod Market Intelligence")
+st.title(" Tmod Market Intelligence")
 
 # --- 2. DATA ENGINE ---
 @st.cache_data
@@ -34,6 +34,7 @@ def load_data():
     # Process Sales
     try:
         sales_df = pd.concat([pd.read_csv(f) for f in redfin_files], ignore_index=True)
+        # FORCE UPPERCASE COLUMNS to avoid mismatch errors
         sales_df.columns = [c.upper() for c in sales_df.columns]
         
         # Clean & Convert
@@ -42,7 +43,10 @@ def load_data():
         sales_df['SqFt'] = pd.to_numeric(sales_df['SQUARE FEET'], errors='coerce')
         sales_df['Lat'] = pd.to_numeric(sales_df['LATITUDE'], errors='coerce')
         sales_df['Lon'] = pd.to_numeric(sales_df['LONGITUDE'], errors='coerce')
-        sales_df['PPSF'] = sales_df['Price'] / sales_df['SqFt']
+        
+        # Safe handling for Year Built (fill NaNs with 0 to prevent crashes)
+        if 'YEAR BUILT' in sales_df.columns:
+            sales_df['YEAR BUILT'] = sales_df['YEAR BUILT'].fillna(0).astype(int)
         
         sales_df = sales_df.dropna(subset=['Price', 'SqFt', 'Lat', 'Lon'])
     except:
@@ -140,10 +144,11 @@ if location:
         with c1:
             st.markdown("#### 📈 Price vs. Size Regression")
             # Base Chart (The Comps)
+            # FIXED: Updated tooltip to use 'YEAR BUILT' (uppercase) to match data
             base = alt.Chart(s_comps).mark_circle(size=60, opacity=0.6, color='#3182bd').encode(
                 x=alt.X('SqFt', scale=alt.Scale(zero=False), title='Square Feet'),
                 y=alt.Y('Price', scale=alt.Scale(zero=False), title='Sold Price', format='$.2s'),
-                tooltip=['ADDRESS', 'Price', 'SqFt', 'Year Built', 'DAYS ON MARKET']
+                tooltip=['ADDRESS', 'Price', 'SqFt', 'YEAR BUILT']
             )
             
             # The Regression Line
